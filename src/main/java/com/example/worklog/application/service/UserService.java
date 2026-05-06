@@ -6,6 +6,7 @@ import com.example.worklog.infrastructure.persistence.entity.UserEntity;
 import com.example.worklog.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 public class UserService {
     private final UserMapper userMapper;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * Create a new user in the system.
@@ -32,8 +34,9 @@ public class UserService {
         }
 
         UserEntity userEntity = userMapper.toEntity(userDTO);
+        userEntity.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         if (userEntity.getRole() == null || userEntity.getRole().isEmpty()){
-            userEntity.setRole("USER");
+            userEntity.setRole("ROLE_USER");
         }
         UserEntity savedUser = userRepository.save(userEntity);
         return userMapper.toDTO(savedUser);
@@ -91,7 +94,6 @@ public class UserService {
         existingUser.setFirst_name(userDTO.getFirst_name());
         existingUser.setLast_name(userDTO.getLast_name());
         existingUser.setEmail(userDTO.getEmail());
-        existingUser.setPassword(userDTO.getPassword());
         existingUser.setGender(userDTO.getGender());
         existingUser.setRole(userDTO.getRole());
         UserEntity updateUser = userRepository.save(existingUser);
