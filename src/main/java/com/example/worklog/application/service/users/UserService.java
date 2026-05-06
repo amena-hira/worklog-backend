@@ -1,4 +1,4 @@
-package com.example.worklog.application.service;
+package com.example.worklog.application.service.users;
 
 import com.example.worklog.api.dto.UserDTO;
 import com.example.worklog.api.mapper.UserMapper;

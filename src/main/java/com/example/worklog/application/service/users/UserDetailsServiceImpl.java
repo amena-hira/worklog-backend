@@ -1,4 +1,4 @@
-package com.example.worklog.application.service;
+package com.example.worklog.application.service.users;
 
 import com.example.worklog.infrastructure.persistence.entity.UserEntity;
 import com.example.worklog.infrastructure.persistence.repository.UserRepository;
