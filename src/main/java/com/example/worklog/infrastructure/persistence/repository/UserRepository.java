@@ -6,7 +6,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Repository for UserEntity database operations.
+ */
 @Repository
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
+    
+    /** Finds a user by their exact email address. */
     Optional<UserEntity> findByEmail(String email);
 }
