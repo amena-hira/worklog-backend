@@ -1,7 +1,7 @@
 package com.example.worklog.api.controller;
 
 import com.example.worklog.api.dto.UserDTO;
-import com.example.worklog.application.service.UserService;
+import com.example.worklog.application.service.users.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
