@@ -16,7 +16,7 @@ public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
     List<TaskEntity> findByProjectId(Long projectId);
     
     /** Finds tasks created by a specific user. */
-    List<TaskEntity> findByUserId(Long userId);
+    List<TaskEntity> findByCreatedById(Long userId);
     
     /** Deletes all tasks associated with a specific project. */
     void deleteByProjectId(Long projectId);
