@@ -1,14 +1,16 @@
 package com.example.worklog.config;
 
 import com.example.worklog.config.jwt.JwtFilter;
+import com.example.worklog.exception.CustomAccessDeniedHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +30,9 @@ public class SecurityConfig {
     @Autowired
     private JwtFilter jwtFilter;
 
+    @Autowired
+    private CustomAccessDeniedHandler customAccessDeniedHandler;
+
     /**
      * Exposes the AuthenticationManager as a Bean.
      * This is required to process authentication requests (like verifying email/password) in our AuthController.
@@ -43,18 +48,33 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
-        http.csrf(csrf -> csrf.disable()) // Disables Cross-Site Request Forgery protection (not needed for stateless JWT APIs)
+        http.csrf(AbstractHttpConfigurer::disable) // Disables Cross-Site Request Forgery protection (not needed for stateless JWT APIs)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource)) // Applies our custom CORS configuration (defined below)
                 .authorizeHttpRequests(auth -> auth
                         // Permits all incoming requests to the authentication endpoints (login, register) without a token
                         .requestMatchers("/api/auth/**").permitAll()
+                        
+                        // User-specific restrictions
+                        .requestMatchers(HttpMethod.PUT, "/api/users/me").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/users/me").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/users/**").hasRole("ADMIN") // Only ADMIN can access other /api/users endpoints
+
+                        // Project-specific restrictions
+                        .requestMatchers(HttpMethod.GET, "/api/projects").hasRole("ADMIN") // Only ADMIN can get ALL projects
+
+                        // Task-specific restrictions
+                        .requestMatchers(HttpMethod.GET, "/api/tasks").hasRole("ADMIN") // Only ADMIN can get ALL tasks
+                        
                         // Requires either the USER or ADMIN role for all other API endpoints
                         .requestMatchers("/api/**").hasAnyRole("USER", "ADMIN")
+
                         // Enforces authentication for absolutely any other request not explicitly matched above
                         .anyRequest().authenticated())
                 // Configures Spring Security to NOT create an HTTP session.
                 // We use JWT tokens for every request, making our application completely stateless
-                .sessionManagement(smc-> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                .sessionManagement(smc-> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Attach our custom AccessDeniedHandler to format 403 errors into our standard JSON response
+                .exceptionHandling(ex -> ex.accessDeniedHandler(customAccessDeniedHandler));
 
         // Registers our custom JwtFilter to execute BEFORE Spring Security's default UsernamePasswordAuthenticationFilter.
         // This ensures the JWT is validated and the security context is populated before Spring checks endpoint authorizations.

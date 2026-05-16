@@ -3,10 +3,12 @@ package com.example.worklog.application.service;
 import com.example.worklog.api.dto.ProjectDTO;
 import com.example.worklog.api.dto.ProjectUserDTO;
 import com.example.worklog.api.mapper.ProjectMapper;
+import com.example.worklog.exception.ResourceNotFoundException;
 import com.example.worklog.infrastructure.persistence.entity.ProjectEntity;
 import com.example.worklog.infrastructure.persistence.entity.ProjectUserEntity;
 import com.example.worklog.infrastructure.persistence.entity.UserEntity;
 import com.example.worklog.infrastructure.persistence.repository.ProjectRepository;
+import com.example.worklog.infrastructure.persistence.repository.TaskRepository;
 import com.example.worklog.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMapper projectMapper;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
 
     /**
      * Creates a new project in the database.
@@ -48,7 +51,7 @@ public class ProjectService {
         // If a creator email is provided (typically from the frontend parsing the JWT), fetch the User
         if (projectDTO.getCreatedByUserEmail() != null) {
             UserEntity creator = userRepository.findByEmail(projectDTO.getCreatedByUserEmail())
-                    .orElseThrow(() -> new RuntimeException("Creator user not found with email: " + projectDTO.getCreatedByUserEmail()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Creator user not found with email: " + projectDTO.getCreatedByUserEmail()));
             projectEntity.setCreatedBy(creator);
         }
         
@@ -56,7 +59,7 @@ public class ProjectService {
         assignMembersToProject(projectEntity, projectDTO.getMembers());
 
         ProjectEntity savedProject = projectRepository.save(projectEntity);
-        return projectMapper.toDTO(savedProject);
+        return calculateProgressForProject(projectMapper.toDTO(savedProject));
     }
 
     /**
@@ -69,6 +72,39 @@ public class ProjectService {
         log.info("Fetching all projects");
         return projectRepository.findAll().stream()
                 .map(projectMapper::toDTO)
+                .map(this::calculateProgressForProject)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves the 5 most recently created projects.
+     *
+     * @return A list of up to 5 recent ProjectDTOs.
+     */
+    @Transactional(readOnly = true)
+    public List<ProjectDTO> getRecentProjects() {
+        log.info("Fetching the 5 most recent projects");
+        return projectRepository.findTop5ByOrderByCreatedDesc().stream()
+                .map(projectMapper::toDTO)
+                .map(this::calculateProgressForProject)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves all projects where the given user is either the creator or an assigned member.
+     *
+     * @param userEmail The email of the user.
+     * @return A list of ProjectDTOs.
+     */
+    @Transactional(readOnly = true)
+    public List<ProjectDTO> getProjectsForUser(String userEmail) {
+        log.info("Fetching projects for user email: {}", userEmail);
+        UserEntity user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+
+        return projectRepository.findProjectsByUserInvolvement(user.getId()).stream()
+                .map(projectMapper::toDTO)
+                .map(this::calculateProgressForProject)
                 .collect(Collectors.toList());
     }
 
@@ -84,7 +120,8 @@ public class ProjectService {
         log.info("Fetching project with id: {}", id);
         return projectRepository.findById(id)
                 .map(projectMapper::toDTO)
-                .orElseThrow(() -> new RuntimeException("Project with id " + id + " not found"));
+                .map(this::calculateProgressForProject)
+                .orElseThrow(() -> new ResourceNotFoundException("Project with id " + id + " not found"));
     }
 
     /**
@@ -101,7 +138,7 @@ public class ProjectService {
         log.info("Updating project with id: {}", id);
         
         ProjectEntity existingProject = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project with id " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with id " + id + " not found"));
 
         // Update basic fields
         existingProject.setName(projectDTO.getName());
@@ -118,7 +155,7 @@ public class ProjectService {
         assignMembersToProject(existingProject, projectDTO.getMembers());
 
         ProjectEntity updatedProject = projectRepository.save(existingProject);
-        return projectMapper.toDTO(updatedProject);
+        return calculateProgressForProject(projectMapper.toDTO(updatedProject));
     }
 
     /**
@@ -132,7 +169,7 @@ public class ProjectService {
     public void deleteProject(Long id) {
         log.info("Deleting project with id: {}", id);
         if (!projectRepository.existsById(id)) {
-            throw new RuntimeException("Project with id " + id + " not found");
+            throw new ResourceNotFoundException("Project with id " + id + " not found");
         }
         projectRepository.deleteById(id);
     }
@@ -151,7 +188,7 @@ public class ProjectService {
             
             for (ProjectUserDTO memberDTO : memberDTOs) {
                 UserEntity user = userRepository.findById(memberDTO.getUserId())
-                        .orElseThrow(() -> new RuntimeException("User with id " + memberDTO.getUserId() + " not found"));
+                        .orElseThrow(() -> new ResourceNotFoundException("User with id " + memberDTO.getUserId() + " not found"));
 
                 String role = memberDTO.getRole() != null ? memberDTO.getRole() : "MEMBER";
                 
@@ -163,5 +200,27 @@ public class ProjectService {
                 projectEntity.getMembers().add(projectUser);
             }
         }
+    }
+
+    /**
+     * Helper method to calculate total tasks, completed tasks, and overall progress percentage.
+     */
+    private ProjectDTO calculateProgressForProject(ProjectDTO dto) {
+        int total = taskRepository.countByProjectId(dto.getId());
+        int completed = taskRepository.countByProjectIdAndIsCompleted(dto.getId(), true);
+        
+        dto.setTotalTasks(total);
+        dto.setCompletedTasks(completed);
+        dto.setTasksDue(total - completed);
+
+        if (total == 0) {
+            dto.setProgress(0); // Prevent divide-by-zero error
+        } else {
+            // Calculate percentage: (completed / total) * 100
+            int progress = (int) Math.round(((double) completed / total) * 100);
+            dto.setProgress(progress);
+        }
+
+        return dto;
     }
 }

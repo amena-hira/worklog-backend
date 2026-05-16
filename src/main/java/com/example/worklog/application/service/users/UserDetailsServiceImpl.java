@@ -1,5 +1,6 @@
 package com.example.worklog.application.service.users;
 
+import com.example.worklog.exception.ResourceNotFoundException;
 import com.example.worklog.infrastructure.persistence.entity.UserEntity;
 import com.example.worklog.infrastructure.persistence.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;

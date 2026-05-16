@@ -13,6 +13,8 @@ import org.mapstruct.MappingConstants;
 public interface TaskMapper {
     
     @Mapping(target = "projectId", source = "project.id")
+    @Mapping(target = "projectName", source = "project.name") // Extracts the name from the nested project entity
+    @Mapping(target = "projectColor", source = "project.color")
     @Mapping(target = "createdByUserEmail", source = "createdBy.email")
     TaskDTO toDTO(TaskEntity taskEntity);
 
