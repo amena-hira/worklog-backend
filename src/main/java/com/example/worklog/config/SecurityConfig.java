@@ -3,6 +3,7 @@ package com.example.worklog.config;
 import com.example.worklog.config.jwt.JwtFilter;
 import com.example.worklog.exception.CustomAccessDeniedHandler;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -32,6 +33,10 @@ public class SecurityConfig {
 
     @Autowired
     private CustomAccessDeniedHandler customAccessDeniedHandler;
+
+    // Reads the CORS URL from application.properties / environment variables
+    @Value("${cors.allowed-origin}")
+    private String corsAllowedOrigin;
 
     /**
      * Exposes the AuthenticationManager as a Bean.
@@ -102,7 +107,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true); // Allows cookies/credentials to be sent (though we use headers mostly)
-        config.addAllowedOrigin("http://localhost:4200"); // Explicitly allows the Angular frontend running on port 4200
+        
+        // Uses the dynamic variable from environment instead of hardcoding localhost
+        config.addAllowedOrigin(corsAllowedOrigin); 
+
         config.addAllowedHeader("*"); // Allows any HTTP headers in the request (like Authorization, Content-Type)
         config.addAllowedMethod("*"); // Allows any HTTP methods (GET, POST, PUT, DELETE, OPTIONS, etc.)
 
