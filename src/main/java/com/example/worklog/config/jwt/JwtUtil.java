@@ -39,7 +39,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .subject(email) // Sets the 'sub' (subject) claim to the user's email
                 .issuedAt(new Date()) // Sets the 'iat' (issued at) claim to the current time
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60)) // Token expires in 1 hour
+                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // Token expires in 1 hour
                 .signWith(getSigningKey()) // Digitally signs the token using the secret key
                 .compact(); // Builds the token and converts it into a URL-safe string format
     }

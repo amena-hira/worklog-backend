@@ -33,4 +33,10 @@ public class ProjectDTO {
 
     // List of users assigned to this project and their roles
     private List<ProjectUserDTO> members = new ArrayList<>();
+
+    // Calculated progress fields for the frontend
+    private Integer totalTasks;
+    private Integer completedTasks;
+    private Integer tasksDue;
+    private Integer progress; // Percentage from 0 to 100
 }
