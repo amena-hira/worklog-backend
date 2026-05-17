@@ -5,6 +5,7 @@ import com.example.worklog.application.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,9 +23,12 @@ public class ProjectController {
 
     /**
      * POST /api/projects : Creates a new project.
+     * The creator's email is securely extracted from the JWT token.
      */
     @PostMapping
-    public ResponseEntity<ProjectDTO> createProject(@RequestBody ProjectDTO projectDTO) {
+    public ResponseEntity<ProjectDTO> createProject(@RequestBody ProjectDTO projectDTO, Authentication authentication) {
+        // Inject the email from the secure token into the DTO before passing to the service
+        projectDTO.setCreatedByUserEmail(authentication.getName());
         ProjectDTO createdProject = projectService.createProject(projectDTO);
         return new ResponseEntity<>(createdProject, HttpStatus.CREATED);
     }
@@ -35,6 +39,24 @@ public class ProjectController {
     @GetMapping
     public ResponseEntity<List<ProjectDTO>> getAllProjects() {
         List<ProjectDTO> projects = projectService.getAllProjects();
+        return ResponseEntity.ok(projects);
+    }
+
+    /**
+     * GET /api/projects/recent : Retrieves the 5 most recently created projects.
+     */
+    @GetMapping("/recent")
+    public ResponseEntity<List<ProjectDTO>> getRecentProjects() {
+        List<ProjectDTO> projects = projectService.getRecentProjects();
+        return ResponseEntity.ok(projects);
+    }
+
+    /**
+     * GET /api/projects/my-projects : Retrieves all projects where the authenticated user is the creator or a member.
+     */
+    @GetMapping("/my-projects")
+    public ResponseEntity<List<ProjectDTO>> getMyProjects(Authentication authentication) {
+        List<ProjectDTO> projects = projectService.getProjectsForUser(authentication.getName());
         return ResponseEntity.ok(projects);
     }
 

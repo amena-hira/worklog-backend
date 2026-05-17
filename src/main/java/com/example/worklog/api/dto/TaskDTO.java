@@ -30,6 +30,11 @@ public class TaskDTO {
     // The ID of the project this task belongs to
     private Long projectId;
 
+    // Added to show the project's name in the API response
+    private String projectName;
+
+    private String projectColor;
+
     // The email of the user who created the task (from JWT usually)
     private String createdByUserEmail;
 

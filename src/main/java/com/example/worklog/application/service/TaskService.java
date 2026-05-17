@@ -2,7 +2,10 @@ package com.example.worklog.application.service;
 
 import com.example.worklog.api.dto.TaskDTO;
 import com.example.worklog.api.dto.TaskUserDTO;
+import com.example.worklog.api.dto.UserTaskStatsDTO;
 import com.example.worklog.api.mapper.TaskMapper;
+import com.example.worklog.exception.InvalidOperationException;
+import com.example.worklog.exception.ResourceNotFoundException;
 import com.example.worklog.infrastructure.persistence.entity.ProjectEntity;
 import com.example.worklog.infrastructure.persistence.entity.TaskEntity;
 import com.example.worklog.infrastructure.persistence.entity.TaskUserEntity;
@@ -12,6 +15,8 @@ import com.example.worklog.infrastructure.persistence.repository.TaskRepository;
 import com.example.worklog.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import com.example.worklog.exception.ResourceInUseException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,16 +54,16 @@ public class TaskService {
         // 2. Link Project
         if (taskDTO.getProjectId() != null) {
             ProjectEntity project = projectRepository.findById(taskDTO.getProjectId())
-                    .orElseThrow(() -> new RuntimeException("Project not found with id: " + taskDTO.getProjectId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + taskDTO.getProjectId()));
             taskEntity.setProject(project);
         } else {
-            throw new RuntimeException("A task must belong to a project. projectId is required.");
+            throw new InvalidOperationException("A task must belong to a project. projectId is required.");
         }
 
         // 3. Link Creator
         if (taskDTO.getCreatedByUserEmail() != null) {
             UserEntity creator = userRepository.findByEmail(taskDTO.getCreatedByUserEmail())
-                    .orElseThrow(() -> new RuntimeException("Creator user not found with email: " + taskDTO.getCreatedByUserEmail()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Creator user not found with email: " + taskDTO.getCreatedByUserEmail()));
             taskEntity.setCreatedBy(creator);
         }
 
@@ -88,7 +93,7 @@ public class TaskService {
         log.info("Fetching task with id: {}", id);
         return taskRepository.findById(id)
                 .map(taskMapper::toDTO)
-                .orElseThrow(() -> new RuntimeException("Task with id " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task with id " + id + " not found"));
     }
 
     /**
@@ -103,6 +108,34 @@ public class TaskService {
     }
 
     /**
+     * Retrieves all tasks where the user is either the creator or an assignee.
+     */
+    @Transactional(readOnly = true)
+    public List<TaskDTO> getTasksForUser(String userEmail) {
+        log.info("Fetching all tasks for user email: {}", userEmail);
+        UserEntity user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+                
+        return taskRepository.findTasksByUserInvolvement(user.getId()).stream()
+                .map(taskMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves tasks due today where the user is either the creator or an assignee.
+     */
+    @Transactional(readOnly = true)
+    public List<TaskDTO> getTasksDueTodayForUser(String userEmail) {
+        log.info("Fetching tasks due today for user email: {}", userEmail);
+        UserEntity user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+                
+        return taskRepository.findTasksDueTodayByUserInvolvement(user.getId(), LocalDate.now()).stream()
+                .map(taskMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Updates an existing task and its assignees.
      */
     @Transactional
@@ -110,7 +143,7 @@ public class TaskService {
         log.info("Updating task with id: {}", id);
         
         TaskEntity existingTask = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Task with id " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task with id " + id + " not found"));
 
         // Update basic fields
         existingTask.setName(taskDTO.getName());
@@ -131,7 +164,7 @@ public class TaskService {
         // Update Project if changed (optional business logic, often tasks stay in same project)
         if (taskDTO.getProjectId() != null && !taskDTO.getProjectId().equals(existingTask.getProject().getId())) {
             ProjectEntity project = projectRepository.findById(taskDTO.getProjectId())
-                    .orElseThrow(() -> new RuntimeException("Project not found with id: " + taskDTO.getProjectId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + taskDTO.getProjectId()));
             existingTask.setProject(project);
         }
 
@@ -150,9 +183,40 @@ public class TaskService {
     public void deleteTask(Long id) {
         log.info("Deleting task with id: {}", id);
         if (!taskRepository.existsById(id)) {
-            throw new RuntimeException("Task with id " + id + " not found");
+            throw new ResourceNotFoundException("Task with id " + id + " not found");
         }
-        taskRepository.deleteById(id);
+        try {
+            taskRepository.deleteById(id);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResourceInUseException("Cannot delete task. It is still being referenced.");
+        }
+    }
+
+    /**
+     * Calculates task statistics for a specific user, considering both tasks they created and tasks assigned to them.
+     * @param userEmail The email of the user to fetch stats for.
+     * @return UserTaskStatsDTO containing total, completed, incomplete, and overdue counts.
+     */
+    @Transactional(readOnly = true)
+    public UserTaskStatsDTO getUserTaskStats(String userEmail) {
+        log.info("Calculating task statistics for user email: {}", userEmail);
+
+        UserEntity user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+
+        Long userId = user.getId();
+
+        int total = taskRepository.countTasksByUserInvolvement(userId);
+        int completed = taskRepository.countTasksByUserInvolvementAndIsCompleted(userId, true);
+        int incomplete = taskRepository.countTasksByUserInvolvementAndIsCompleted(userId, false);
+        int overdue = taskRepository.countOverdueTasksByUserInvolvement(userId, LocalDate.now());
+
+        return UserTaskStatsDTO.builder()
+                .totalTasks(total)
+                .completedTasks(completed)
+                .incompleteTasks(incomplete)
+                .overdueTasks(overdue)
+                .build();
     }
 
     /**
@@ -166,7 +230,7 @@ public class TaskService {
             
             for (TaskUserDTO assigneeDTO : assigneeDTOs) {
                 UserEntity user = userRepository.findById(assigneeDTO.getUserId())
-                        .orElseThrow(() -> new RuntimeException("User with id " + assigneeDTO.getUserId() + " not found"));
+                        .orElseThrow(() -> new ResourceNotFoundException("User with id " + assigneeDTO.getUserId() + " not found"));
                 
                 TaskUserEntity taskUser = TaskUserEntity.builder()
                         .task(taskEntity)
