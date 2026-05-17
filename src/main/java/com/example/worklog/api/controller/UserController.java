@@ -1,5 +1,6 @@
 package com.example.worklog.api.controller;
 
+import com.example.worklog.api.dto.AdminUserDTO;
 import com.example.worklog.api.dto.UserDTO;
 import com.example.worklog.application.service.users.UserService;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +29,14 @@ public class UserController {
     }
 
     /**
-     * Endpoint to retrieve all users.
+     * Endpoint to retrieve all users (Admin only).
+     * Returns AdminUserDTO which includes the user ID.
      *
-     * @return ResponseEntity containing a list of UserDTOs and HTTP status OK (200).
+     * @return ResponseEntity containing a list of AdminUserDTOs and HTTP status OK (200).
      */
     @GetMapping
-    public ResponseEntity<List<UserDTO>> getAllUsers(){
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<List<AdminUserDTO>> getAllUsers(){
+        return ResponseEntity.ok(userService.getAllUsersForAdmin());
     }
 
     /**
@@ -58,14 +60,15 @@ public class UserController {
     }
 
     /**
-     * Endpoint to retrieve a specific user by their ID.
+     * Endpoint to retrieve a specific user by their ID (Admin only).
+     * Returns AdminUserDTO which includes the user ID.
      *
      * @param id The ID of the user.
-     * @return ResponseEntity containing the UserDTO and HTTP status OK (200).
+     * @return ResponseEntity containing the AdminUserDTO and HTTP status OK (200).
      */
     @GetMapping("/{id}")
-    public ResponseEntity<UserDTO> getUserById(@PathVariable Long id){
-        return ResponseEntity.ok(userService.getUserById(id));
+    public ResponseEntity<AdminUserDTO> getUserById(@PathVariable Long id){
+        return ResponseEntity.ok(userService.getUserByIdForAdmin(id));
     }
 
     /**

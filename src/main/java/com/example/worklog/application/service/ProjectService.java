@@ -3,6 +3,8 @@ package com.example.worklog.application.service;
 import com.example.worklog.api.dto.ProjectDTO;
 import com.example.worklog.api.dto.ProjectUserDTO;
 import com.example.worklog.api.mapper.ProjectMapper;
+import com.example.worklog.exception.InvalidOperationException;
+import com.example.worklog.exception.ResourceInUseException;
 import com.example.worklog.exception.ResourceNotFoundException;
 import com.example.worklog.infrastructure.persistence.entity.ProjectEntity;
 import com.example.worklog.infrastructure.persistence.entity.ProjectUserEntity;
@@ -12,6 +14,7 @@ import com.example.worklog.infrastructure.persistence.repository.TaskRepository;
 import com.example.worklog.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -160,6 +163,7 @@ public class ProjectService {
 
     /**
      * Deletes a project from the database.
+     * Only allows deletion if all tasks in the project are completed, or if the project has no tasks.
      * Note: Due to CascadeType.ALL, this will also delete all associated tasks and memberships.
      *
      * @param id The ID of the project to delete.
@@ -168,10 +172,23 @@ public class ProjectService {
     @Transactional
     public void deleteProject(Long id) {
         log.info("Deleting project with id: {}", id);
+        
         if (!projectRepository.existsById(id)) {
             throw new ResourceNotFoundException("Project with id " + id + " not found");
         }
-        projectRepository.deleteById(id);
+        
+        int totalTasks = taskRepository.countByProjectId(id);
+        int completedTasks = taskRepository.countByProjectIdAndIsCompleted(id, true);
+
+        if (totalTasks > 0 && totalTasks != completedTasks) {
+             throw new InvalidOperationException("Cannot delete project. All tasks (" + totalTasks + ") must be completed first. Currently " + completedTasks + " are completed.");
+        }
+
+        try {
+            projectRepository.deleteById(id);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResourceInUseException("Cannot delete project. It is still being referenced by other records.");
+        }
     }
     
     /**

@@ -15,6 +15,8 @@ import com.example.worklog.infrastructure.persistence.repository.TaskRepository;
 import com.example.worklog.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import com.example.worklog.exception.ResourceInUseException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -183,7 +185,11 @@ public class TaskService {
         if (!taskRepository.existsById(id)) {
             throw new ResourceNotFoundException("Task with id " + id + " not found");
         }
-        taskRepository.deleteById(id);
+        try {
+            taskRepository.deleteById(id);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResourceInUseException("Cannot delete task. It is still being referenced.");
+        }
     }
 
     /**

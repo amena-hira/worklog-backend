@@ -57,7 +57,9 @@ public class SecurityConfig {
                         // User-specific restrictions
                         .requestMatchers(HttpMethod.PUT, "/api/users/me").hasAnyRole("USER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users/me").hasAnyRole("USER", "ADMIN")
-                        .requestMatchers("/api/users/**").hasRole("ADMIN") // Only ADMIN can access other /api/users endpoints
+                        .requestMatchers(HttpMethod.GET, "/api/users").hasAnyRole("USER", "ADMIN") // Both can get all users (returns AdminUserDTO with IDs)
+                        .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN") // Only ADMIN can update other users
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN") // Only ADMIN can delete users
 
                         // Project-specific restrictions
                         .requestMatchers(HttpMethod.GET, "/api/projects").hasRole("ADMIN") // Only ADMIN can get ALL projects

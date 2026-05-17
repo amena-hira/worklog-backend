@@ -1,13 +1,17 @@
 package com.example.worklog.application.service.users;
 
+import com.example.worklog.api.dto.AdminUserDTO;
 import com.example.worklog.api.dto.UserDTO;
+import com.example.worklog.api.mapper.AdminUserMapper;
 import com.example.worklog.api.mapper.UserMapper;
 import com.example.worklog.exception.DuplicateResourceException;
+import com.example.worklog.exception.ResourceInUseException;
 import com.example.worklog.exception.ResourceNotFoundException;
 import com.example.worklog.infrastructure.persistence.entity.UserEntity;
 import com.example.worklog.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserService {
     private final UserMapper userMapper;
+    private final AdminUserMapper adminUserMapper;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -45,26 +50,26 @@ public class UserService {
     }
 
     /**
-     * Retrieves a list of all users.
+     * Retrieves a list of all users for admin purposes (includes ID).
      *
-     * @return A list of UserDTOs representing all users.
+     * @return A list of AdminUserDTOs representing all users.
      */
-    public List<UserDTO> getAllUsers(){
-        log.info("Fetching all users");
-        return userRepository.findAll().stream().map(userMapper::toDTO).collect(Collectors.toList());
+    public List<AdminUserDTO> getAllUsersForAdmin(){
+        log.info("Fetching all users for admin");
+        return userRepository.findAll().stream().map(adminUserMapper::toDTO).collect(Collectors.toList());
     }
 
     /**
-     * Retrieves a specific user by their unique ID.
+     * Retrieves a specific user by their unique ID for admin purposes (includes ID).
      *
      * @param id The ID of the user to retrieve.
-     * @return The UserDTO representing the requested user.
+     * @return The AdminUserDTO representing the requested user.
      * @throws ResourceNotFoundException if the user is not found.
      */
-    public UserDTO getUserById(Long id){
-        log.info("Fetching user with id: {}", id);
+    public AdminUserDTO getUserByIdForAdmin(Long id){
+        log.info("Fetching user with id for admin: {}", id);
         return userRepository.findById(id)
-                .map(userMapper::toDTO)
+                .map(adminUserMapper::toDTO)
                 .orElseThrow(()-> new ResourceNotFoundException("User with id: "+id+" not found"));
     }
 
@@ -148,13 +153,18 @@ public class UserService {
      *
      * @param id The ID of the user to delete.
      * @throws ResourceNotFoundException if the user to delete is not found.
+     * @throws ResourceInUseException if the user is referenced by other entities.
      */
     public void deleteUser(Long id){
         log.info("Deleting user with id: {}", id);
         if (!userRepository.existsById(id)){
             throw new ResourceNotFoundException("User with id: "+id+" not found");
         }
-        userRepository.deleteById(id);
+        try {
+            userRepository.deleteById(id);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResourceInUseException("Cannot delete user. They are still assigned to tasks or projects.");
+        }
     }
 
 }
