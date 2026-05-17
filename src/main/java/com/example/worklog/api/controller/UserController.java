@@ -1,10 +1,12 @@
 package com.example.worklog.api.controller;
 
+import com.example.worklog.api.dto.AdminUserDTO;
 import com.example.worklog.api.dto.UserDTO;
-import com.example.worklog.application.service.UserService;
+import com.example.worklog.application.service.users.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,24 +29,46 @@ public class UserController {
     }
 
     /**
-     * Endpoint to retrieve all users.
+     * Endpoint to retrieve all users (Admin only).
+     * Returns AdminUserDTO which includes the user ID.
      *
-     * @return ResponseEntity containing a list of UserDTOs and HTTP status OK (200).
+     * @return ResponseEntity containing a list of AdminUserDTOs and HTTP status OK (200).
      */
     @GetMapping
-    public ResponseEntity<List<UserDTO>> getAllUsers(){
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<List<AdminUserDTO>> getAllUsers(){
+        return ResponseEntity.ok(userService.getAllUsersForAdmin());
     }
 
     /**
-     * Endpoint to retrieve a specific user by their ID.
+     * Endpoint to retrieve the profile of the currently authenticated user.
+     * Extracts the email from the JWT token.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<UserDTO> getCurrentUser(Authentication authentication) {
+        return ResponseEntity.ok(userService.getUserByEmail(authentication.getName()));
+    }
+
+    /**
+     * Endpoint to update the profile of the currently authenticated user.
+     * The email of the user to update is extracted from the JWT token for security.
+     *
+     * @param userDTO The updated user details.
+     */
+    @PutMapping("/me")
+    public ResponseEntity<UserDTO> updateCurrentUser(@RequestBody UserDTO userDTO, Authentication authentication) {
+        return ResponseEntity.ok(userService.updateCurrentUser(authentication.getName(), userDTO));
+    }
+
+    /**
+     * Endpoint to retrieve a specific user by their ID (Admin only).
+     * Returns AdminUserDTO which includes the user ID.
      *
      * @param id The ID of the user.
-     * @return ResponseEntity containing the UserDTO and HTTP status OK (200).
+     * @return ResponseEntity containing the AdminUserDTO and HTTP status OK (200).
      */
     @GetMapping("/{id}")
-    public ResponseEntity<UserDTO> getUserById(@PathVariable Long id){
-        return ResponseEntity.ok(userService.getUserById(id));
+    public ResponseEntity<AdminUserDTO> getUserById(@PathVariable Long id){
+        return ResponseEntity.ok(userService.getUserByIdForAdmin(id));
     }
 
     /**
@@ -59,7 +83,8 @@ public class UserController {
     }
 
     /**
-     * Endpoint to update an existing user.
+     * Endpoint to update an existing user by their ID.
+     * Typically reserved for Admin use.
      *
      * @param id The ID of the user to update.
      * @param userDTO The user data transfer object containing the updated details.
@@ -81,7 +106,4 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
-
-
-
 }
