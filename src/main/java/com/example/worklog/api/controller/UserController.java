@@ -29,8 +29,9 @@ public class UserController {
     }
 
     /**
-     * Endpoint to retrieve all users (Admin only).
-     * Returns AdminUserDTO which includes the user ID.
+     * Endpoint to retrieve all users.
+     * Both User and Admin can access this.
+     * Returns AdminUserDTO which includes the user ID (needed for assigning users).
      *
      * @return ResponseEntity containing a list of AdminUserDTOs and HTTP status OK (200).
      */
@@ -60,8 +61,7 @@ public class UserController {
     }
 
     /**
-     * Endpoint to retrieve a specific user by their ID (Admin only).
-     * Returns AdminUserDTO which includes the user ID.
+     * Endpoint to retrieve a specific user by their ID.
      *
      * @param id The ID of the user.
      * @return ResponseEntity containing the AdminUserDTO and HTTP status OK (200).
@@ -84,7 +84,7 @@ public class UserController {
 
     /**
      * Endpoint to update an existing user by their ID.
-     * Typically reserved for Admin use.
+     * Only Admin can access this.
      *
      * @param id The ID of the user to update.
      * @param userDTO The user data transfer object containing the updated details.
@@ -97,6 +97,7 @@ public class UserController {
 
     /**
      * Endpoint to delete a user by their ID.
+     * Only Admin can access this.
      *
      * @param id The ID of the user to delete.
      * @return ResponseEntity with no content and HTTP status NO_CONTENT (204).

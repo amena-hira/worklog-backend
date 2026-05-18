@@ -14,11 +14,14 @@ import java.util.List;
 @Repository
 public interface ProjectRepository extends JpaRepository<ProjectEntity, Long> {
     
+    /** Finds all projects ordered by creation date descending (newest first). */
+    List<ProjectEntity> findAllByOrderByCreatedDesc();
+
     /** Finds the 5 most recently created projects. */
     List<ProjectEntity> findTop5ByOrderByCreatedDesc();
 
     /** 
-     * Finds all projects where a specific user is involved:
+     * Finds all projects where a specific user is involved, ordered by newest first:
      * 1. As the creator of the project
      * 2. As an assigned member of the project
      * 3. As an assignee on ANY task within the project
@@ -29,6 +32,7 @@ public interface ProjectRepository extends JpaRepository<ProjectEntity, Long> {
            "LEFT JOIN t.assignees ta " +
            "WHERE p.createdBy.id = :userId " +
            "OR m.user.id = :userId " +
-           "OR ta.user.id = :userId")
+           "OR ta.user.id = :userId " +
+           "ORDER BY p.created DESC")
     List<ProjectEntity> findProjectsByUserInvolvement(@Param("userId") Long userId);
 }

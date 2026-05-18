@@ -56,7 +56,7 @@ public class UserService {
      */
     public List<AdminUserDTO> getAllUsersForAdmin(){
         log.info("Fetching all users for admin");
-        return userRepository.findAll().stream().map(adminUserMapper::toDTO).collect(Collectors.toList());
+        return userRepository.findAllByOrderByIdDesc().stream().map(adminUserMapper::toDTO).collect(Collectors.toList());
     }
 
     /**
