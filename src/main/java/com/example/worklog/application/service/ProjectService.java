@@ -72,7 +72,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<ProjectDTO> getAllProjects() {
         log.info("Fetching all projects");
-        return projectRepository.findAll().stream()
+        return projectRepository.findAllByOrderByCreatedDesc().stream()
                 .map(projectMapper::toDTO)
                 .map(this::calculateProgressForProject)
                 .collect(Collectors.toList());
@@ -162,8 +162,7 @@ public class ProjectService {
 
     /**
      * Deletes a project from the database.
-     * Note: Due to CascadeType.ALL on the ProjectEntity, this will automatically 
-     * and safely delete all associated tasks and memberships in the database.
+     * Also deletes all associated tasks and memberships.
      *
      * @param id The ID of the project to delete.
      * @throws RuntimeException if the project does not exist.
@@ -177,6 +176,9 @@ public class ProjectService {
         }
 
         try {
+            // First, delete all tasks associated with the project to avoid constraint violations
+            taskRepository.deleteByProjectId(id);
+            // Now, delete the project
             projectRepository.deleteById(id);
         } catch (DataIntegrityViolationException ex) {
             throw new ResourceInUseException("Cannot delete project. It is still being referenced by other records.");

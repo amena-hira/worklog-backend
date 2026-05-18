@@ -15,8 +15,11 @@ import java.util.List;
 @Repository
 public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
     
-    /** Finds tasks belonging to a specific project. */
-    List<TaskEntity> findByProjectId(Long projectId);
+    /** Finds all tasks ordered by creation date descending (newest first). */
+    List<TaskEntity> findAllByOrderByCreatedDesc();
+
+    /** Finds tasks belonging to a specific project ordered by creation date descending. */
+    List<TaskEntity> findByProjectIdOrderByCreatedDesc(Long projectId);
     
     /** Finds tasks created by a specific user. */
     List<TaskEntity> findByCreatedById(Long userId);
@@ -31,15 +34,15 @@ public interface TaskRepository extends JpaRepository<TaskEntity, Long> {
     int countByProjectIdAndIsCompleted(Long projectId, Boolean isCompleted);
 
     /** 
-     * Finds tasks related to a user (either created by them or assigned to them).
+     * Finds tasks related to a user (either created by them or assigned to them), ordered by newest first.
      */
-    @Query("SELECT DISTINCT t FROM TaskEntity t LEFT JOIN t.assignees a WHERE t.createdBy.id = :userId OR a.user.id = :userId")
+    @Query("SELECT DISTINCT t FROM TaskEntity t LEFT JOIN t.assignees a WHERE t.createdBy.id = :userId OR a.user.id = :userId ORDER BY t.created DESC")
     List<TaskEntity> findTasksByUserInvolvement(@Param("userId") Long userId);
 
     /** 
-     * Finds tasks due today that are related to a user (either created by them or assigned to them).
+     * Finds tasks due today that are related to a user (either created by them or assigned to them), ordered by newest first.
      */
-    @Query("SELECT DISTINCT t FROM TaskEntity t LEFT JOIN t.assignees a WHERE (t.createdBy.id = :userId OR a.user.id = :userId) AND t.dueDate = :dueDate")
+    @Query("SELECT DISTINCT t FROM TaskEntity t LEFT JOIN t.assignees a WHERE (t.createdBy.id = :userId OR a.user.id = :userId) AND t.dueDate = :dueDate ORDER BY t.created DESC")
     List<TaskEntity> findTasksDueTodayByUserInvolvement(@Param("userId") Long userId, @Param("dueDate") LocalDate dueDate);
 
     // --- Methods for User Task Statistics ---

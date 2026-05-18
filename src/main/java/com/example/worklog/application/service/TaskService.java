@@ -81,7 +81,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<TaskDTO> getAllTasks() {
         log.info("Fetching all tasks");
-        return taskRepository.findAll().stream()
+        return taskRepository.findAllByOrderByCreatedDesc().stream()
                 .map(taskMapper::toDTO)
                 .collect(Collectors.toList());
     }
@@ -103,7 +103,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<TaskDTO> getTasksByProjectId(Long projectId) {
         log.info("Fetching tasks for project id: {}", projectId);
-        return taskRepository.findByProjectId(projectId).stream()
+        return taskRepository.findByProjectIdOrderByCreatedDesc(projectId).stream()
                 .map(taskMapper::toDTO)
                 .collect(Collectors.toList());
     }
