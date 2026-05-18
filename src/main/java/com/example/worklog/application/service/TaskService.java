@@ -1,6 +1,7 @@
 package com.example.worklog.application.service;
 
 import com.example.worklog.api.dto.TaskDTO;
+import com.example.worklog.api.dto.TaskStatusUpdateDTO;
 import com.example.worklog.api.dto.TaskUserDTO;
 import com.example.worklog.api.dto.UserTaskStatsDTO;
 import com.example.worklog.api.mapper.TaskMapper;
@@ -171,6 +172,30 @@ public class TaskService {
         // Update members
         existingTask.getAssignees().clear();
         assignMembersToTask(existingTask, taskDTO.getAssignees());
+
+        TaskEntity updatedTask = taskRepository.save(existingTask);
+        return taskMapper.toDTO(updatedTask);
+    }
+
+    /**
+     * Updates only the completion status of a task.
+     */
+    @Transactional
+    public TaskDTO updateTaskStatus(Long id, TaskStatusUpdateDTO statusDTO) {
+        log.info("Updating completion status for task id: {}", id);
+        
+        TaskEntity existingTask = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task with id " + id + " not found"));
+
+        if (statusDTO.getIsCompleted() != null) {
+            if (statusDTO.getIsCompleted() && !Boolean.TRUE.equals(existingTask.getIsCompleted())) {
+                existingTask.setCompleted(LocalDate.now());
+            } else if (!statusDTO.getIsCompleted()) {
+                existingTask.setCompleted(null);
+            }
+            existingTask.setIsCompleted(statusDTO.getIsCompleted());
+            existingTask.setModified(LocalDate.now());
+        }
 
         TaskEntity updatedTask = taskRepository.save(existingTask);
         return taskMapper.toDTO(updatedTask);

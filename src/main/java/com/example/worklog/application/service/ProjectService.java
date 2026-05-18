@@ -3,7 +3,6 @@ package com.example.worklog.application.service;
 import com.example.worklog.api.dto.ProjectDTO;
 import com.example.worklog.api.dto.ProjectUserDTO;
 import com.example.worklog.api.mapper.ProjectMapper;
-import com.example.worklog.exception.InvalidOperationException;
 import com.example.worklog.exception.ResourceInUseException;
 import com.example.worklog.exception.ResourceNotFoundException;
 import com.example.worklog.infrastructure.persistence.entity.ProjectEntity;
@@ -163,8 +162,8 @@ public class ProjectService {
 
     /**
      * Deletes a project from the database.
-     * Only allows deletion if all tasks in the project are completed, or if the project has no tasks.
-     * Note: Due to CascadeType.ALL, this will also delete all associated tasks and memberships.
+     * Note: Due to CascadeType.ALL on the ProjectEntity, this will automatically 
+     * and safely delete all associated tasks and memberships in the database.
      *
      * @param id The ID of the project to delete.
      * @throws RuntimeException if the project does not exist.
@@ -175,13 +174,6 @@ public class ProjectService {
         
         if (!projectRepository.existsById(id)) {
             throw new ResourceNotFoundException("Project with id " + id + " not found");
-        }
-        
-        int totalTasks = taskRepository.countByProjectId(id);
-        int completedTasks = taskRepository.countByProjectIdAndIsCompleted(id, true);
-
-        if (totalTasks > 0 && totalTasks != completedTasks) {
-             throw new InvalidOperationException("Cannot delete project. All tasks (" + totalTasks + ") must be completed first. Currently " + completedTasks + " are completed.");
         }
 
         try {
