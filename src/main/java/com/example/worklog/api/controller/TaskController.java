@@ -1,9 +1,11 @@
 package com.example.worklog.api.controller;
 
 import com.example.worklog.api.dto.TaskDTO;
+import com.example.worklog.api.dto.TaskStatusUpdateDTO;
 import com.example.worklog.api.dto.UserTaskStatsDTO;
 import com.example.worklog.application.service.TaskService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -14,6 +16,7 @@ import java.util.List;
 /**
  * REST Controller for managing Task entities.
  */
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/tasks")
@@ -76,6 +79,19 @@ public class TaskController {
     @PutMapping("/{id}")
     public ResponseEntity<TaskDTO> updateTask(@PathVariable Long id, @RequestBody TaskDTO taskDTO) {
         return ResponseEntity.ok(taskService.updateTask(id, taskDTO));
+    }
+
+    /**
+     * Updates only the completion status of a specific task.
+     * Uses PATCH as it's a partial update of the resource.
+     *
+     * @param id The ID of the task.
+     * @param statusDTO The lightweight DTO containing just the new status.
+     */
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<TaskDTO> updateTaskStatus(@PathVariable Long id, @RequestBody TaskStatusUpdateDTO statusDTO) {
+        log.info("Updating completion status for task id: {} {} {}", id, statusDTO,statusDTO.getIsCompleted());
+        return ResponseEntity.ok(taskService.updateTaskStatus(id, statusDTO));
     }
 
     @DeleteMapping("/{id}")
